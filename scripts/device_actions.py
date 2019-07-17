@@ -1,6 +1,6 @@
 """
 A smart home function that can push configuration updates to a Google Cloud IoT device
-connected to an RGB lamp/display
+connected to a 4x4 RGB display / Click
 
 """
 
@@ -82,7 +82,7 @@ def on_sync(input, requestId):
                 'id'    : DEVICE,
                 'type'  : 'action.devices.types.LIGHT',
                 'traits': [ 
-                          'action.devices.traits.OnOff',   #use OnOff OR Brightness not both!
+                          'action.devices.traits.OnOff',  
                           'action.devices.traits.Brightness',
                           'action.devices.traits.ColorSpectrum',
                           ],
@@ -91,7 +91,7 @@ def on_sync(input, requestId):
                     'name'        : '4x4 Panel',
                     'nicknames'   : ['panel', '4 by 4']
                 },
-                'willReportState' : True,
+                'willReportState' : False, # require a query to get state
                 'attributes'      : {
                     'colorModel'  : 'rgb',
                     'commandOnlyColorSetting': False,
@@ -120,7 +120,7 @@ def on_execute(commands, requestId):
                 if execCommand == 'action.devices.commands.OnOff':
                     on = execution['params']['on']
                     # print('Toggle:', on)
-                    send_config('{"toggle":'+ ('0', '1')[on] + '}')   # do send the device config string
+                    send_config('{"toggle":'+ ('false', 'true')[on] + '}')   # do send the device config string
                     results.append({
                         'ids'    : ids,
                         'status' : 'SUCCESS',
@@ -134,7 +134,7 @@ def on_execute(commands, requestId):
                     spectrum = color['spectrumRGB']
                     name = color['name']
                     # print('Color:', color)
-                    send_config('{"color":' + hex(spectrum) + ',"name":"'+name+'"}')
+                    send_config('{"color":' + str(spectrum) + ',"name":"'+ name+'"}')
                     results.append({
                         'ids'    : ids,
                         'status' : 'SUCCESS',
@@ -145,7 +145,7 @@ def on_execute(commands, requestId):
                 elif execCommand == 'action.devices.commands.BrightnessAbsolute':
                     bright = execution['params']['brightness']
                     #print('Brightness:', bright)
-                    send_config('{"bright":' + hex(bright) + '}')
+                    send_config('{"bright":' + str(bright) + '}')
                     results.append({
                         'ids'    : ids,
                         'status' : 'SUCCESS',
@@ -170,8 +170,7 @@ def on_execute(commands, requestId):
 
 def on_query(devices, requestId):
     state = get_state()
-    binaryOn = state.get('on', 0)
-    on = (False, True)[binaryOn]
+    on = state.get('on', False)
     color = state.get('color', 0x001f00)
     name = state.get('name', 'unknown')
     brightness = state.get('brightness', 25)

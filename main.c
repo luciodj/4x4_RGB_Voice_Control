@@ -37,9 +37,9 @@ SOFTWARE.
 #include "json.h"
 
 uint32_t color = 0x00FF00;  // green
-uint8_t brightness = 25;
+uint8_t brightness = 10;
 bool onOff = false;
-char name[128];
+char color_name[128];
 
 void transition() {
     uint8_t red, green, blue; // take the color input and split in RGB
@@ -47,14 +47,14 @@ void transition() {
         red   = color >> 16;
         green = color >> 8;
         blue  = color;
-        red     = (uint8_t) (red * brightness /100 );
-        green   = (uint8_t) (green * brightness / 100);
-        blue    = (uint8_t) (blue * brightness /100);
+        red     = (uint8_t) (red   * brightness / 100);
+        green   = (uint8_t) (green * brightness / 100); // reduce green for compensation
+        blue    = (uint8_t) (blue  * brightness / 100);
     }
     else {
-        red = 0;
+        red   = 0;
         green = 0;
-        blue = 0;
+        blue  = 0;
     }
     NEO_migrate(red, green, blue);
 }
@@ -63,34 +63,32 @@ void transition() {
 void receivedFromCloud(uint8_t *topic, uint8_t *payload)
 {
 	LED_flashRed();
+
 //	debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "topic: %s", topic);
 	debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "payload: %s", payload);
-    int t = JSON_getInt(payload, "toggle");
-    if (t != -1) {
-            onOff = (t != 0);
-    }
-//    else
-//    	debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "t%d, onOff: %d", t, onOff);
 
-    int32_t c = JSON_getInt(payload, "color");
-    if (c != -1) {
+    bool b;
+    if  (JSON_getBool(payload, "toggle", &b)) {
+            onOff = b;
+//    	debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "t%d, onOff: %d", t, onOff);
+    }
+
+    uint32_t c;
+    if (JSON_getInt(payload, "color", &c)) {
         color = c;
 //        debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "color: 0x%06lx", color);
     }
 
-    uint8_t * np = JSON_getValue(payload, "name");
-    if (np != NULL) {
-        np++;
-        int len = JSON_findQuote(np) - np;
-        strncpy(name, (char*)np, len);
-        name[len]='\0';
-        debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "name: \"%s\"", name);
+    uint8_t *name;
+    uint8_t name_len;
+    if (JSON_getString(payload, "name", &name, &name_len)) {
+        strncpy(color_name, (char*)name, name_len);
+//        debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "name: \"%s\"", name);
     }
 
-
-    int bright = JSON_getInt(payload, "bright");
-    if (bright != -1) {
-        brightness = bright;
+    uint32_t bright;
+    if (JSON_getInt(payload, "bright", &bright)) {
+        brightness = (uint8_t) bright;
 //        debug_printer(SEVERITY_NONE, LEVEL_NORMAL, "bright: %d", bright);
     }
 
@@ -99,8 +97,9 @@ void receivedFromCloud(uint8_t *topic, uint8_t *payload)
 
     // report back state
     static char json[70];
-    int len = sprintf(json, "{\"on\":%d,\"brightness\":%d,\"color\":%ld,\"name\":\"%s\"}",
-                                onOff,   brightness,       color,         name);
+    char * boolean[2] = {"false", "true"};
+    int len = sprintf(json, "{\"on\":%s,\"brightness\":%d,\"color\":%ld}",
+                                boolean[onOff],   brightness,       color);
     if (len > 0) {
         CLOUD_publishData((uint8_t*)json, len);
     }
@@ -117,7 +116,7 @@ void sendToCloud(void)
 //      CLOUD_publishData((uint8_t*)json, len);
 //   }
 
-   LED_flashYellow();
+   LED_flashYellow(); // heartbeat
 }
 
 

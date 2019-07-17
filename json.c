@@ -1,6 +1,6 @@
 /*
 \file   json.c
-
+\author Lucio Di Jasio
 \brief  A simple JSON string parser
 
 (c) 2018 Microchip Technology Inc. and its subsidiaries.
@@ -77,10 +77,10 @@ uint8_t * JSON_getValue(uint8_t *json, char* key){
         if (*p == '"') {        // skip past string value
             p = JSON_findQuote(p+1);
             if (*p == '\0') break;
-            p = next(p+1);            // skip white spaces
+            p = next(p+1);        // skip white spaces
             }
-        else {
-            while(isHexDigit(*p) || (*p=='x')) p++;
+        else {                  // skip past numeric or bool
+            while(isAlpha(*p) || isDigit(*p))  p++;
         }
         p = next(p);            // skip white spaces
         if (*p != ',') break;     // expecting a ',' -> not found or bad json
@@ -88,48 +88,51 @@ uint8_t * JSON_getValue(uint8_t *json, char* key){
     return NULL;
 }
 
-inline static uint8_t hex_digit_to_num(char c)
-{
-    if (c >= '0' && c <= '9') {
-        return (uint8_t)(c - '0');
-    }
-    if (c >= 'a' && c <= 'f') {
-        return (uint8_t)(c - 'a') + 10;
-    }
-    if (c >= 'A' && c <= 'F') {
-        return (uint8_t)(c - 'A') + 10;
-    }
-    return 16;
-}
 
-uint32_t get_number(uint8_t *p){
-    uint32_t number = 0;
+uint32_t get_number(uint8_t *p) {
+    uint32_t value = 0;
 
-    if ((p[0] == '"') &&  (p[1] != '\0'))    // if inside a string, (i.e. slider)
+    if ((p[0] == '"') &&  (p[1] != '\0'))    // force it if inside a string, (i.e. slider)
         p++;
 
-    if ((p[0] == '0') && (p[1] == 'x')) {    // if hexadecimal (i.e. RGB value)
-        p += 2;
-        while (*p && isHexDigit(*p)) {
-            number <<= 4;
-            number += hex_digit_to_num(*p);
-            p++;
-            }
-    } else {
-        while (*p && isDigit(*p)) {
-            number *= 10;
-            number += (*p - '0');
-            p++;
-        }
+    while (*p && isDigit(*p)) {
+        value *= 10;
+        value += (*p - '0');
+        p++;
     }
-    return number;
+
+    if ((p[0] == '"') &&  (p[1] != '\0'))    // force it if inside a string, (i.e. slider)
+        p++;
+
+    return value;
 }
 
-uint32_t JSON_getInt(uint8_t *p, char * key) {
+bool JSON_getInt(uint8_t *p, char * key, uint32_t *value) {
+    uint8_t * pV= JSON_getValue(p, key);
+    if (pV == NULL) return false;
+
+    *value = get_number(pV);
+    return true;
+}
+
+bool JSON_getString(uint8_t *p, char * key, uint8_t** value, uint8_t *len) {
+    uint8_t * pV = JSON_getValue(p, key);
+    if (pV == NULL) return false;
+    pV++;
+    *value = pV;
+    *len = JSON_findQuote(pV) - pV;
+    return true;
+}
+
+bool JSON_getBool(uint8_t *p, char * key, bool* value) {
     uint8_t *pV = JSON_getValue(p, key);
-    if (pV != NULL) {
-        return get_number(pV);
-    }
+    if (pV == NULL) return false;
+    if (strncmp((char*)pV, "true", 4) == 0)
+        *value = true;
+    else if (strncmp((char*)pV, "false", 5) == 0)
+        *value = false;
+    else return false; // not matching true/false
 
-    return -1;
+    return true;
 }
+

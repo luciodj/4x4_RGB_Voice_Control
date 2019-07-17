@@ -11,8 +11,8 @@ def fake_auth(request):
         `make_response <http://flask.pocoo.org/docs/1.0/api/#flask.Flask.make_response>`.
     """
     query = parse_qs(request.query_string)
-    print('Query string=', request.query_string)
-    print('Query=', query)
+ #   print('Query string=', request.query_string)
+ #   print('Query=', query)
     redirect_uri = query[b'redirect_uri'][0]
     state = query[b'state'][0]
     response_url =  redirect_uri + b'?code=AVR&state=' + state       
