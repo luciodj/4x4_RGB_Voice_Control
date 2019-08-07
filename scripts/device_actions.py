@@ -172,9 +172,8 @@ def on_query(devices, requestId):
     state = get_state()
     on = state.get('on', False)
     color = state.get('color', 0x001f00)
-    name = state.get('name', 'unknown')
     brightness = state.get('brightness', 25)
-    print(on, color, brightness)
+    #print(on, color, brightness)
     return jsonify({
         'requestId': requestId,
         'payload'  : {
@@ -182,10 +181,7 @@ def on_query(devices, requestId):
                 device['id']: {
                   'on'    : on,
                   'brightness': brightness,
-                  'color': {
-                    'spectrumRgb' : color,
-                    'name' : name,
-                  },
+                  'color': {'spectrumRgb' : color},
                   'online': True
                 } for device in devices}
             }
